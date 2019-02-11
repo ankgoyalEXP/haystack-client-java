@@ -16,6 +16,7 @@
  */
 package com.expedia.www.haystack.client;
 
+import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -25,24 +26,26 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Span implements io.opentracing.Span {
     private final Tracer tracer;
     private final Clock clock;
-    private final AtomicReference<SpanContext> context = new AtomicReference<>();
-    private final AtomicReference<String> operationName = new AtomicReference<>();
+    private final SpanContext context;
+    private String operationName;
     private final Map<String, Object> tags;
     private final List<LogData> logs;
     private final List<Reference> references;
-    private final AtomicReference<Long> duration = new AtomicReference<>();
-    private final AtomicReference<Long> endTime = new AtomicReference<>();
-    private final AtomicReference<Long> startTime = new AtomicReference<>();
+    private Long duration;
+    private Long endTime;
+    private final Long startTime;
 
     private final AtomicReference<Boolean> finished = new AtomicReference<>(false);
     private final List<RuntimeException> errors;
 
     public Span(Tracer tracer, Clock clock, String operationName, SpanContext context, long startTime, Map<String, Object> tags, List<Reference> references) {
+        Validate.notNull(operationName, "operationName cannot be null");
+        Validate.notNull(tags, "tags cannot be null");
         this.tracer = tracer;
         this.clock = clock;
-        this.operationName.compareAndSet(null, operationName);
-        this.context.compareAndSet(null, context);
-        this.startTime.compareAndSet(null, startTime);
+        this.operationName = operationName;
+        this.context = context;
+        this.startTime = startTime;
         this.tags = new HashMap<>();
 
         if (references == null) {
@@ -104,8 +107,8 @@ public class Span implements io.opentracing.Span {
 
     protected synchronized void finishTrace(long finishMicros) {
         finishedCheck("Finishing a prior finished span");
-        this.endTime.compareAndSet(null, finishMicros);
-        this.duration.compareAndSet(null, endTime.get() - startTime.get());
+        this.endTime =  finishMicros;
+        this.duration = endTime - startTime;
         finished.compareAndSet(false, true);
         tracer.dispatch(this);
     }
@@ -121,21 +124,21 @@ public class Span implements io.opentracing.Span {
      * @return the duration
      */
     public Long getDuration() {
-        return duration.get();
+        return duration;
     }
 
     /**
      * @return the endTime
      */
     public Long getEndTime() {
-        return endTime.get();
+        return endTime;
     }
 
     /**
      * @return the endTime
      */
     public Long getStartTime() {
-        return startTime.get();
+        return startTime;
     }
 
     /**
@@ -147,7 +150,7 @@ public class Span implements io.opentracing.Span {
 
     @Override
     public SpanContext context() {
-        return this.context.get();
+        return this.context;
     }
 
     public String getServiceName() {
@@ -158,14 +161,14 @@ public class Span implements io.opentracing.Span {
     /**
      * @return the operatioName
      */
-    public String getOperatioName() {
-        return this.operationName.get();
+    public String getOperationName() {
+        return this.operationName;
     }
 
     @Override
     public Span setOperationName(String operationName) {
         finishedCheck("Setting operation name (%s) to a finished span", operationName);
-        this.operationName.compareAndSet(this.getOperatioName(), operationName);
+        this.operationName = operationName;
         return this;
     }
 
@@ -175,17 +178,17 @@ public class Span implements io.opentracing.Span {
             return this;
         }
         finishedCheck("Setting baggage (%s:%s) on a finished span", key, value);
-        this.context.compareAndSet(this.context.get(), this.context.get().addBaggage(key, value));
+        this.context.addBaggage(key, value);
         return this;
     }
 
     @Override
     public String getBaggageItem(String key) {
-        return this.context.get().getBaggageItem(key);
+        return this.context.getBaggageItem(key);
     }
 
     public Map<String, String> getBaggageItems() {
-        return context.get().getBaggage();
+        return context.getBaggage();
     }
 
     @Override

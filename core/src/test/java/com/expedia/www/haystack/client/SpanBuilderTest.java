@@ -43,7 +43,7 @@ public class SpanBuilderTest {
     public void testBasic() {
         Span span = tracer.buildSpan("test-operation").start();
 
-        Assert.assertEquals("test-operation", span.getOperatioName());
+        Assert.assertEquals("test-operation", span.getOperationName());
     }
 
 

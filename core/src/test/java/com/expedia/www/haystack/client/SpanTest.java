@@ -62,9 +62,9 @@ public class SpanTest {
         String expected = "op-name";
         String modString = "other-op-name";
         Span span = tracer.buildSpan(expected).start();
-        Assert.assertEquals(expected, span.getOperatioName());
+        Assert.assertEquals(expected, span.getOperationName());
         span.setOperationName(modString);
-        Assert.assertEquals(modString, span.getOperatioName());
+        Assert.assertEquals(modString, span.getOperationName());
     }
 
     @Test
